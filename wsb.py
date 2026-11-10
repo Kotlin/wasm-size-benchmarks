@@ -69,7 +69,8 @@ def cmd_run(args):
         for p in projs:
             measure.measure(p, variant, with_names=not args.no_names, force=args.force)
 
-    report.compare([p.name for p in projs], [v.label for v in variant_list])
+    report.compare([p.name for p in projs], [v.label for v in variant_list],
+                   open_charts=not args.no_open)
 
 
 def cmd_install(args):
@@ -229,6 +230,8 @@ def main():
     p.add_argument("--skip-install", action="store_true",
                    help="use already-registered variants, don't build compilers")
     p.add_argument("--no-names", action="store_true", help="skip name-section analysis")
+    p.add_argument("--no-open", action="store_true",
+                   help="don't open the result charts in a viewer")
     p.set_defaults(fn=cmd_run)
 
     p = sub.add_parser("install", help="build a compiler variant into ~/.m2")

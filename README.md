@@ -61,6 +61,20 @@ The report printed at the end (and saved under `results/`) looks like:
 |            |              | 683ff38277 | 5,216,472 (−18.26%) | 1,647,969 (−6.67%) | 1,210,603 (−7.73%) |
 ```
 
+The saved report also embeds two SVG charts alongside the tables — they scale to any number
+of variants (a timeline gets one bar per variant in every project group):
+
+- **`sizes.svg`** — grouped columns: backend-only brotli size per project × variant
+  (variants in fixed categorical color order, first = baseline; a missing measurement
+  renders as an `n/a` slot instead of shifting the alignment).
+- **`deltas.svg`** — diverging bars: % change vs baseline per (project, variant); blue =
+  smaller than baseline, red = bigger. Skipped when there is only one variant.
+
+`run` opens both charts in your viewer when it finishes (opt out with `--no-open`). The
+charts plot brotli sizes, the delivery-realistic metric — expect their deltas to be much
+smaller than the raw ones in the tables (raw counts string-literal encoding shifts that
+compression erases).
+
 To attribute the delta to individual commits, chain `--variants` into a timeline (first
 entry = baseline, every later variant is reported against it):
 
@@ -136,7 +150,7 @@ Everything lives under `WSB_HOME` (default `~/.cache/wasm-size-bench`, override 
 var): `clones/` (project repos), `worktrees/` (Kotlin variants),
 `builds/<project>/<variant>/` (compileSync copy + `build.log` + `meta.json` +
 `measure.json` + `same-opt.wasm`), `results/<stamp>-<variants>/` (report.md +
-results.json), `variants.json` (the variant registry).
+results.json + sizes.svg + deltas.svg), `variants.json` (the variant registry).
 
 ## Subcommands
 

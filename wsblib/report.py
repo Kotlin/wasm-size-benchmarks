@@ -85,7 +85,49 @@ def _names_section(all_data):
     return lines
 
 
-def compare(project_names, labels, save=True):
+def _emit_charts(all_data, project_names, labels, outdir):
+    """Render sizes.svg (grouped columns) + deltas.svg (diverging % vs baseline) into outdir.
+    Returns [(filename, alt-text)] for the report's image links."""
+    from . import chart
+    groups = [n for n in project_names if n in all_data]
+    have = [l for l in labels
+            if any(all_data.get(n, {}).get(l, {}).get("measurements") for n in groups)]
+    if not groups or not have:
+        return []
+    values = {}
+    for n in groups:
+        for l in have:
+            m = all_data.get(n, {}).get(l, {}).get("measurements", {}).get("2 backend-only")
+            values[(n, l)] = m["brotli"] if m else None
+    if all(v is None for v in values.values()):
+        return []
+
+    written = []
+    svg = chart.grouped_columns_svg(
+        "Kotlin/Wasm size by project and variant",
+        "brotli -q11 (KB) of the backend-only output — lower is better",
+        groups, have, values)
+    (outdir / "sizes.svg").write_text(svg + "\n")
+    written.append(("sizes.svg", "Wasm size by project and variant"))
+
+    rows = []
+    for n in groups:
+        base = values.get((n, have[0]))
+        for l in have[1:]:
+            v = values.get((n, l))
+            if v is not None and base:
+                rows.append((f"{n} · {l}", (v - base) / base * 100))
+    if rows:
+        svg = chart.diverging_rows_svg(
+            "Size change vs baseline",
+            "brotli, backend-only; negative (blue) = smaller than the baseline variant",
+            rows)
+        (outdir / "deltas.svg").write_text(svg + "\n")
+        written.append(("deltas.svg", "Size change vs baseline"))
+    return written
+
+
+def compare(project_names, labels, save=True, open_charts=False):
     from .projects import get
     all_data = {}
     missing = []
@@ -103,11 +145,21 @@ def compare(project_names, labels, save=True):
     if missing:
         config.warn(f"no measurements for: {', '.join(missing)} (skipped in report)")
 
+    outdir = None
+    charts = []
+    if save:
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        outdir = config.RESULTS / f"{stamp}-{'-vs-'.join(labels)}"
+        outdir.mkdir(parents=True, exist_ok=True)
+        charts = _emit_charts(all_data, project_names, labels, outdir)
+
     md = ["# Kotlin/Wasm size comparison", "",
           f"- variants: {', '.join(labels)} (first = baseline)",
           f"- generated: {datetime.now().isoformat(timespec='seconds')}", ""]
     if all_data:
-        md += _summary_table(all_data) + [""] + _names_section(all_data)
+        md += _summary_table(all_data) + [""]
+        md += [f"![{alt}]({name})" for name, alt in charts] + [""]
+        md += _names_section(all_data)
         for name, data_by_variant in all_data.items():
             md += _project_table(name, data_by_variant) + [""]
         md += ["Measurements: 1 = compiler output before Binaryen; 2 = the same pinned "
@@ -120,10 +172,11 @@ def compare(project_names, labels, save=True):
     text = "\n".join(md)
     print(text)
     if save:
-        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        outdir = config.RESULTS / f"{stamp}-{'-vs-'.join(labels)}"
-        outdir.mkdir(parents=True, exist_ok=True)
         (outdir / "report.md").write_text(text + "\n")
         (outdir / "results.json").write_text(json.dumps(all_data, indent=2) + "\n")
-        config.log(f"report saved to {outdir}")
+        config.log(f"report saved to {outdir}"
+                   + (f" (charts: {', '.join(n for n, _ in charts)})" if charts else ""))
+        if open_charts and charts:
+            for name, _ in charts:
+                config.open_path(outdir / name)
     return all_data

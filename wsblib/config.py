@@ -77,6 +77,15 @@ def stream(cmd, cwd, log_path):
     return proc.returncode
 
 
+def open_path(path):
+    """Open a file with the OS default viewer (best effort, never fatal)."""
+    import platform
+    import subprocess
+    cmd = {"Darwin": ["open"], "Windows": ["cmd", "/c", "start", ""]}.get(
+        platform.system(), ["xdg-open"])
+    subprocess.run([*cmd, str(path)], check=False)
+
+
 def check_tools():
     for t in ("wasm-tools", "brotli", "git"):
         need(t)
