@@ -22,9 +22,9 @@ To add a project, append a Project(...) to PROJECTS. Fields:
                   wasm files to measure; largest non-excluded match wins
   artifact_exclude  substrings; files whose name contains one are ignored (e.g. skiko)
 
-Patch.when selects the variants a patch applies to: "always", "kgp-modern" (KGP newer than the
-2.2.x line) or "kgp-legacy" (2.2.x and older) — the binaryenArgs -> binaryenArguments rename
-in KGP makes this the one variant-dependent edit.
+Patch.when selects the variants a patch applies to: "always", "kgp-modern" (KGP >= 2.4.0) or
+"kgp-legacy" (older) — the binaryenArgs -> binaryenArguments rename landed in KGP 2.4.0, which
+makes this the one variant-dependent edit.
 
 Version substitution is regex-based: `version_re`/`version_replace` (defaults cover the usual
 `kotlin = "..."` version-catalog line; imageviewer uses a gradle.properties-style

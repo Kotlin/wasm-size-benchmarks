@@ -64,16 +64,18 @@ The report printed at the end (and saved under `results/`) looks like:
 The saved report also embeds two SVG charts alongside the tables — they scale to any number
 of variants (a timeline gets one bar per variant in every project group):
 
-- **`sizes.svg`** — grouped columns: backend-only brotli size per project × variant
-  (variants in fixed categorical color order, first = baseline; a missing measurement
-  renders as an `n/a` slot instead of shifting the alignment).
-- **`deltas.svg`** — diverging bars: % change vs baseline per (project, variant); blue =
-  smaller than baseline, red = bigger. Skipped when there is only one variant.
+- **`sizes.svg`** — small multiples: one grouped-column panel per metric (raw / gzip -9 /
+  brotli -q11), stacked vertically, each with its own scale. Variants are the series in
+  fixed categorical color order (first = baseline); a missing measurement renders as an
+  `n/a` slot instead of shifting the alignment.
+- **`deltas.svg`** — diverging bars: % change vs baseline, one section per metric on the
+  shared % scale; blue = smaller than baseline, red = bigger. Skipped when there is only
+  one variant.
 
-`run` opens both charts in your viewer when it finishes (opt out with `--no-open`). The
-charts plot brotli sizes, the delivery-realistic metric — expect their deltas to be much
-smaller than the raw ones in the tables (raw counts string-literal encoding shifts that
-compression erases).
+`run` opens both charts in your viewer when it finishes (opt out with `--no-open`). Judge
+changes by the brotli panels/sections — that is what the browser downloads. The raw panels
+mostly track encoding shifts (string literals moving into import names), so raw deltas run
+much larger than compressed ones for the same change.
 
 To attribute the delta to individual commits, chain `--variants` into a timeline (first
 entry = baseline, every later variant is reported against it):
@@ -129,7 +131,8 @@ conditional and idempotent): set `kotlin = "<variant version>"` in
 `gradle/libs.versions.toml`; add
 `mavenLocal()` to kotlinconf's settings (upstream Compose already has it); Gradle wrapper
 ≥ 8.14 for master KGP; skip the `macosX64()` target; and `binaryenArgs` → `binaryenArguments`
-after the 2.2.x line, keeping `-g` so the name section survives for `funcdiff`.
+for KGP >= 2.4.0 (2.3.x still uses the old name), keeping `-g` so the name section
+survives for `funcdiff`.
 
 ## Determinism
 

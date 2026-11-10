@@ -23,7 +23,11 @@ from pathlib import Path
 from . import config
 
 RELEASED_RE = re.compile(r"^\d+\.\d+\.\d+$")
-LEGACY_KGP_PREFIXES = ("1.", "2.0.", "2.1.", "2.2.")
+
+# KGP renamed BinaryenExec.binaryenArgs -> binaryenArguments in 2.4.0
+# (b1ffd00a8fe5, 2026-02-12; first release tag containing it: build-2.4.0-Beta1).
+# 2.3.x still uses the old name — verified the hard way by a 2.3.0 arm build.
+_BINARYEN_ARGUMENTS_MIN = (2, 4, 0)
 
 
 @dataclass
@@ -50,8 +54,10 @@ def save_registry(reg):
 
 
 def kgp_modern(version: str) -> bool:
-    """KGP renamed BinaryenExec.binaryenArgs -> binaryenArguments after the 2.2.x line."""
-    return not version.startswith(LEGACY_KGP_PREFIXES)
+    """True if KGP uses the binaryenArguments property (>= 2.4.0). Unparsable versions are
+    treated as modern (they are dev snapshots in practice)."""
+    t = version_tuple(version)
+    return t is None or t >= _BINARYEN_ARGUMENTS_MIN
 
 
 def version_tuple(version: str):

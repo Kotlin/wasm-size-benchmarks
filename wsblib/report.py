@@ -86,42 +86,51 @@ def _names_section(all_data):
 
 
 def _emit_charts(all_data, project_names, labels, outdir):
-    """Render sizes.svg (grouped columns) + deltas.svg (diverging % vs baseline) into outdir.
-    Returns [(filename, alt-text)] for the report's image links."""
+    """Render sizes.svg (small multiples per metric) + deltas.svg (diverging % per metric)
+    into outdir. Returns [(filename, alt-text)] for the report's image links."""
     from . import chart
     groups = [n for n in project_names if n in all_data]
     have = [l for l in labels
             if any(all_data.get(n, {}).get(l, {}).get("measurements") for n in groups)]
     if not groups or not have:
         return []
-    values = {}
-    for n in groups:
-        for l in have:
-            m = all_data.get(n, {}).get(l, {}).get("measurements", {}).get("2 backend-only")
-            values[(n, l)] = m["brotli"] if m else None
-    if all(v is None for v in values.values()):
+
+    def m_of(n, l):
+        return all_data.get(n, {}).get(l, {}).get("measurements", {}).get("2 backend-only")
+
+    panels = []
+    for key, mlabel, scale, fmt, tick_fmt in chart.METRICS:
+        values = {(n, l): (m_of(n, l)[key] if m_of(n, l) else None)
+                  for n in groups for l in have}
+        if any(v is not None for v in values.values()):
+            panels.append((mlabel, values, fmt, scale, tick_fmt))
+    if not panels:
         return []
 
     written = []
     svg = chart.grouped_columns_svg(
         "Kotlin/Wasm size by project and variant",
-        "brotli -q11 (KB) of the backend-only output — lower is better",
-        groups, have, values)
+        "measurement 2 (backend only): the same pinned Binaryen on every variant — lower is better",
+        groups, have, panels)
     (outdir / "sizes.svg").write_text(svg + "\n")
     written.append(("sizes.svg", "Wasm size by project and variant"))
 
-    rows = []
-    for n in groups:
-        base = values.get((n, have[0]))
-        for l in have[1:]:
-            v = values.get((n, l))
-            if v is not None and base:
-                rows.append((f"{n} · {l}", (v - base) / base * 100))
-    if rows:
+    sections = []
+    for key, mlabel, _, _, _ in chart.METRICS:
+        rows = []
+        for n in groups:
+            base = m_of(n, have[0])
+            for l in have[1:]:
+                m = m_of(n, l)
+                if m and base:
+                    rows.append((f"{n} · {l}", (m[key] - base[key]) / base[key] * 100))
+        if rows:
+            sections.append((mlabel, rows))
+    if sections:
         svg = chart.diverging_rows_svg(
             "Size change vs baseline",
-            "brotli, backend-only; negative (blue) = smaller than the baseline variant",
-            rows)
+            "measurement 2 (backend only); negative (blue) = smaller than the baseline variant",
+            sections)
         (outdir / "deltas.svg").write_text(svg + "\n")
         written.append(("deltas.svg", "Size change vs baseline"))
     return written
