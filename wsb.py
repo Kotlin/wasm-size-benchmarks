@@ -16,6 +16,7 @@ See README.md for the method, variant specs, and how to add projects.
 """
 
 import argparse
+import os
 import re
 import shutil
 import sys
@@ -189,6 +190,29 @@ def cmd_clean(args):
         print("nothing to do: pass --worktrees/--clones/--builds/--results")
 
 
+def _acquire_lock():
+    """Only one mutating wsb invocation at a time. This is not cosmetic: a run once started
+    while another was mid-install, consumed its partially-published ~/.m2 artifacts, and
+    produced tainted builds. The lock releases automatically when the process exits."""
+    import fcntl
+    config.WSB_HOME.mkdir(parents=True, exist_ok=True)
+    lock_path = config.WSB_HOME / "wsb.lock"
+    # O_RDWR without O_TRUNC: a contender must not wipe the holder's pid while probing
+    fh = os.fdopen(os.open(lock_path, os.O_RDWR | os.O_CREAT), "r+")
+    try:
+        fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        fh.seek(0)
+        pid = fh.read().strip() or "?"
+        config.die(f"another wsb invocation is running (pid {pid}); concurrent runs corrupt "
+                   f"~/.m2 and build state. If none is running, remove {lock_path}.")
+    fh.seek(0)
+    fh.truncate()
+    fh.write(str(os.getpid()))
+    fh.flush()
+    return fh  # kept open for the process lifetime
+
+
 def main():
     ap = argparse.ArgumentParser(prog="wsb", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -256,6 +280,7 @@ def main():
 
     args = ap.parse_args()
     config.check_tools()
+    lock = _acquire_lock() if args.cmd not in ("status", "compare", "funcdiff") else None
     args.fn(args)
 
 

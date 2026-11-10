@@ -65,7 +65,7 @@ def stream(cmd, cwd, log_path):
     runs can then be followed with `tail -f`, and interactive prompts end up in the log
     immediately instead of hiding in a buffer until the process exits. Returns exit code."""
     log_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(log_path, "ab") as logf:
+    with open(log_path, "wb") as logf:  # truncate: a log must reflect exactly one command run
         proc = subprocess.Popen(
             [str(c) for c in cmd], cwd=str(cwd),
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,

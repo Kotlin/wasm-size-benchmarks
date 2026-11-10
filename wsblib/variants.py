@@ -147,6 +147,10 @@ def ensure_worktree(variant: Variant):
 
 
 def _m2_marker(version):
+    """Where the KGP jar lands in ~/.m2. NOTE: never use this as an 'install done' signal —
+    `./gradlew install` publishes artifacts module-by-module, so an INTERRUPTED install
+    leaves the marker behind with a half-published artifact set (seen in practice). Only
+    the registry entry (written after a successful install) means the variant is ready."""
     return Path.home() / ".m2" / "repository" / "org" / "jetbrains" / "kotlin" \
         / "kotlin-gradle-plugin" / version
 
@@ -177,8 +181,9 @@ def install(variant: Variant, force=False) -> Variant:
         # dirty variants build in place in the main working tree
         variant.deploy_version = \
             f"{snapshot_base(Path(variant.source_dir))}-{variant.label}-SNAPSHOT"
-        already = bool(prev and prev.get("install_done")) \
-            or _m2_marker(variant.deploy_version).exists()
+        # Only a completed install registers install_done; a partial ~/.m2 publish
+        # (interrupted install) must NOT be treated as done — see _m2_marker's note.
+        already = bool(prev and prev.get("install_done"))
         if already and not dirty_changed and not force:
             config.log(f"variant {variant.label}: install already done "
                        f"({variant.deploy_version})")
