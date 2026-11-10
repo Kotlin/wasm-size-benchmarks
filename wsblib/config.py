@@ -61,15 +61,19 @@ def git(*args, cwd=None, check=True):
 
 
 def stream(cmd, cwd, log_path):
-    """Run cmd with cwd, appending stdout+stderr to log_path. Returns exit code."""
+    """Run cmd with cwd, appending stdout+stderr to log_path AS IT HAPPENS — long gradle
+    runs can then be followed with `tail -f`, and interactive prompts end up in the log
+    immediately instead of hiding in a buffer until the process exits. Returns exit code."""
     log_path.parent.mkdir(parents=True, exist_ok=True)
     with open(log_path, "ab") as logf:
-        proc = subprocess.run(
+        proc = subprocess.Popen(
             [str(c) for c in cmd], cwd=str(cwd),
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
         )
-        logf.write(proc.stdout)
-        logf.flush()
+        for line in proc.stdout:
+            logf.write(line)
+            logf.flush()
+        proc.wait()
     return proc.returncode
 
 

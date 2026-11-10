@@ -190,6 +190,10 @@ def install(variant: Variant, force=False) -> Variant:
             cmd = ["./gradlew", "install",
                    f"-PdeployVersion={variant.deploy_version}",
                    f"-Pbuild.number={variant.deploy_version}",
+                   # fresh worktrees have no local.properties, and the repo's gradle.properties
+                   # enables the internal setup plugin whose consent prompt blocks a
+                   # non-interactive build forever (it reads stdin; stdout is captured here)
+                   "-Pkotlin.build.internal.gradle.setup=false",
                    "-q", "--console=plain"]
             rc = config.stream(cmd, variant.source_dir,
                                config.WSB_HOME / f"install-{variant.label}.log")
